@@ -6,14 +6,16 @@
 
 "use strict";
 
+import {mat4} from "../lib/gl-matrix-esm/index.js";
+
 // Device
 const adapter = await window.navigator.gpu.requestAdapter();
 const device = await adapter.requestDevice();
-console.log(adapter);
-console.log(device);
 
 // Context
 const canvas = document.getElementById("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
 const preferredFormat = context.getPreferredFormat(adapter);
 context.configure({
@@ -21,8 +23,6 @@ context.configure({
     format: preferredFormat, // "rgba8unorm",
     usage: GPUTextureUsage.RENDER_ATTACHMENT // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
 });
-console.log(context);
-console.log(preferredFormat);
 
 // Textures
 let depthTexture = device.createTexture({
@@ -36,29 +36,43 @@ let depthTexture = device.createTexture({
 let depthTextureView = depthTexture.createView();
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
-console.log(depthTexture);
-console.log(colorTexture);
 
 // Data
 const positions = new Float32Array([
-    1.0, -1.0, 0.0,
-   -1.0, -1.0, 0.0,
-    0.0,  1.0, 0.0
+    // Front
+    -0.5, -0.5,  0.5,
+     0.5, -0.5,  0.5,
+     0.5,  0.5,  0.5,
+    -0.5,  0.5,  0.5,
+    // Back
+    -0.5, -0.5, -0.5,
+     0.5, -0.5, -0.5,
+     0.5,  0.5, -0.5,
+    -0.5,  0.5, -0.5
 ]);
 const colors = new Float32Array([
-    1.0, 0.0, 0.0,
-    0.0, 1.0, 0.0,
-    0.0, 0.0, 1.0
+    0.1, 0.1, 0.1,
+    1.0, 0.1, 0.1,
+    0.1, 1.0, 0.1,
+    1.0, 1.0, 0.1,
+    0.1, 0.1, 1.0,
+    1.0, 0.1, 1.0,
+    0.1, 1.0, 1.0,
+    1.0, 1.0, 1.0
 ]);
-const indices = new Uint16Array([ 0, 1, 2 ]);
+const indices = new Uint16Array([
+    0, 1, 2, 2, 3, 0, // Front
+    1, 5, 6, 6, 2, 1, // Right
+    7, 6, 5, 5, 4, 7, // Back
+    4, 0, 3, 3, 7, 4, // Left
+    4, 5, 1, 1, 0, 4, // Bottom
+    3, 2, 6, 6, 7, 3  // Top
+]);
 
 // Buffers
 let positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
 let colorBuffer = createBuffer(device, colors, GPUBufferUsage.VERTEX);
 let indexBuffer = createBuffer(device, indices, GPUBufferUsage.INDEX);
-console.log(positionBuffer);
-console.log(colorBuffer);
-console.log(indexBuffer);
 
 // Shaders
 const vsSource = `
@@ -69,8 +83,6 @@ struct VSOut {
 
 [[block]] struct UBO {
     mvpMat: mat4x4<f32>;
-    primaryColor: vec4<f32>;
-    secondaryColor: vec4<f32>;
 };
 [[binding(0), group(0)]] var<uniform> uniforms: UBO;
 
@@ -91,23 +103,20 @@ fn main([[location(0)]] inColor: vec3<f32>) -> [[location(0)]] vec4<f32> {
 `;
 let vsModule = device.createShaderModule({ code: vsSource });
 let fsModule = device.createShaderModule({ code: fsSource });
-console.log(vsModule);
-console.log(fsModule);
+
+// Uniform data
+const projMat = mat4.create();
+const viewMat = mat4.create();
+const pvMat = mat4.create();
+const pvmMat = mat4.create();
+const rotation = [0, 0, 0];
+
+mat4.perspective(projMat, Math.PI / 2, canvas.width / canvas.height, 0.1, 100.0);
+mat4.lookAt(viewMat, [0, 0, 2], [0, 0, 0], [0, 1, 0]);
+mat4.mul(pvMat, projMat, viewMat);
 
 // Uniforms
-const uniformData = new Float32Array([
-    // MVP matrix
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 1.0, 0.0,
-    0.0, 0.0, 0.0, 1.0,
-    // Primary color
-    0.9, 0.1, 0.3, 1.0,
-    // Accent color
-    0.8, 0.2, 0.8, 1.0
-]);
-let uniformBuffer = createBuffer(device, uniformData, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-console.log(uniformBuffer);
+let uniformBuffer = createBuffer(device, pvMat, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
 // Uniform bind group
 let uniformBindGroupLayout = device.createBindGroupLayout({
@@ -128,7 +137,6 @@ let uniformBindGroup = device.createBindGroup({
         }
     }]
 });
-console.log(uniformBindGroup);
 
 // Render pipeline
 let pipelineLayout = device.createPipelineLayout({
@@ -171,8 +179,8 @@ const pipeline = device.createRenderPipeline({
     },
     // Rasterization
     primitive: {
-        frontFace: "cw",
-        cullMode: "none",
+        frontFace: "ccw",
+        cullMode: "back",
         topology: "triangle-list"
     },
     // Depth test
@@ -182,7 +190,6 @@ const pipeline = device.createRenderPipeline({
         format: "depth24plus-stencil8"
     }
 });
-console.log(pipeline);
 
 // Draw
 render();
@@ -208,14 +215,14 @@ function encodeCommands() {
     const renderPass = commandEncoder.beginRenderPass({
         colorAttachments: [{
             view: colorTextureView,
-            loadValue: { r: 0, g: 0, b: 0, a: 1 },
+            loadValue: [0, 0, 0, 1],
             storeOp: "store"
         }],
         depthStencilAttachment: {
             view: depthTextureView,
             depthLoadValue: 1,
             depthStoreOp: "store",
-            stencilLoadValue: "load",
+            stencilLoadValue: 0,
             stencilStoreOp: "store"
         }
     });
@@ -233,7 +240,7 @@ function encodeCommands() {
     // Uniforms
     renderPass.setBindGroup(0, uniformBindGroup);
 
-    renderPass.drawIndexed(3);
+    renderPass.drawIndexed(36);
     renderPass.endPass();
 
     device.queue.submit([commandEncoder.finish()]);
@@ -241,10 +248,17 @@ function encodeCommands() {
 
 function render() {
     // Update MVP matrix
-    uniformData[0]  *= 0.999;
-    uniformData[5]  *= 0.999;
-    uniformData[10] *= 0.999;
-    device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+    rotation[1] += 0.01;
+    rotation[0] += 0.005;
+
+    const modelMat = mat4.create();
+    mat4.rotateX(modelMat, modelMat, rotation[0]);
+    mat4.rotateY(modelMat, modelMat, rotation[1]);
+    mat4.rotateZ(modelMat, modelMat, rotation[2]);
+
+    mat4.mul(pvmMat, pvMat, modelMat);
+
+    device.queue.writeBuffer(uniformBuffer, 0, pvmMat);
 
     // Swap framebuffer
     colorTexture = context.getCurrentTexture();
