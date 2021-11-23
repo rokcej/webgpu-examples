@@ -8,6 +8,12 @@
 
 import {mat4} from "../lib/gl-matrix-esm/index.js";
 
+// Check WebGPU support
+if (!window.navigator.gpu) {
+    document.body.innerHTML = "<div class=\"text\">Your browser does not support WebGPU</div>";
+    throw new Error("WebGPU not supported");
+}
+
 // Device
 const adapter = await window.navigator.gpu.requestAdapter();
 const device = await adapter.requestDevice();
