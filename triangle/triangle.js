@@ -29,8 +29,16 @@ context.configure({
 });
 
 // Textures
+const sampleCount = 4;
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
+let msaaTexture = device.createTexture({
+    size: [canvas.width, canvas.height, 1],
+    sampleCount: sampleCount,
+    format: preferredFormat,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT
+});
+let msaaTextureView = msaaTexture.createView();
 
 // Data
 const positions = new Float32Array([
@@ -119,6 +127,10 @@ const pipeline = device.createRenderPipeline({
         frontFace: "cw",
         cullMode: "none",
         topology: "triangle-list"
+    },
+    // Multisampling
+    multisample: {
+        count: sampleCount
     }
 });
 
@@ -145,7 +157,8 @@ function encodeCommands() {
     const commandEncoder = device.createCommandEncoder();
     const renderPass = commandEncoder.beginRenderPass({
         colorAttachments: [{
-            view: colorTextureView,
+            view: msaaTextureView,
+            resolveTarget: colorTextureView,
             loadValue: [0, 0, 0, 1],
             storeOp: "store"
         }]
