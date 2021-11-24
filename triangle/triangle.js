@@ -29,15 +29,6 @@ context.configure({
 });
 
 // Textures
-let depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height, 1],
-    mipLevelCount: 1, // Optional
-    sampleCount: 1, // Optional
-    dimension: "2d", // Optional
-    format: "depth24plus-stencil8",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT // | GPUTextureUsage.COPY_SRC
-});
-let depthTextureView = depthTexture.createView();
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
 
@@ -128,12 +119,6 @@ const pipeline = device.createRenderPipeline({
         frontFace: "cw",
         cullMode: "none",
         topology: "triangle-list"
-    },
-    // Depth test
-    depthStencil: {
-        depthWriteEnabled: true,
-        depthCompare: "less",
-        format: "depth24plus-stencil8"
     }
 });
 
@@ -163,14 +148,7 @@ function encodeCommands() {
             view: colorTextureView,
             loadValue: [0, 0, 0, 1],
             storeOp: "store"
-        }],
-        depthStencilAttachment: {
-            view: depthTextureView,
-            depthLoadValue: 1,
-            depthStoreOp: "store",
-            stencilLoadValue: 0,
-            stencilStoreOp: "store"
-        }
+        }]
     });
 
     renderPass.setPipeline(pipeline);
