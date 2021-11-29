@@ -7,7 +7,8 @@
 
 "use strict";
 
-import {mat3, mat4} from "../lib/gl-matrix-esm/index.js";
+import { mat3, mat4 } from "../lib/gl-matrix-esm/index.js";
+import { texturedCube } from "../meshes.js";
 
 // Check WebGPU support
 if (!window.navigator.gpu) {
@@ -56,52 +57,9 @@ let depthTextureView = depthTexture.createView();
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
 
-// Data
-const attributes = new Float32Array([
-    // Position       // UV      // Normal
-    // Front
-    -0.5, -0.5,  0.5, 0.0, 1.0,  0.0,  0.0,  1.0,
-     0.5, -0.5,  0.5, 1.0, 1.0,  0.0,  0.0,  1.0,
-     0.5,  0.5,  0.5, 1.0, 0.0,  0.0,  0.0,  1.0,
-    -0.5,  0.5,  0.5, 0.0, 0.0,  0.0,  0.0,  1.0,
-    // Right
-     0.5, -0.5,  0.5, 0.0, 1.0,  1.0,  0.0,  0.0,
-     0.5, -0.5, -0.5, 1.0, 1.0,  1.0,  0.0,  0.0,
-     0.5,  0.5, -0.5, 1.0, 0.0,  1.0,  0.0,  0.0,
-     0.5,  0.5,  0.5, 0.0, 0.0,  1.0,  0.0,  0.0,
-    // Back
-     0.5, -0.5, -0.5, 0.0, 1.0,  0.0,  0.0, -1.0,
-    -0.5, -0.5, -0.5, 1.0, 1.0,  0.0,  0.0, -1.0,
-    -0.5,  0.5, -0.5, 1.0, 0.0,  0.0,  0.0, -1.0,
-     0.5,  0.5, -0.5, 0.0, 0.0,  0.0,  0.0, -1.0,
-    // Left
-    -0.5, -0.5, -0.5, 0.0, 1.0, -1.0,  0.0,  0.0,
-    -0.5, -0.5,  0.5, 1.0, 1.0, -1.0,  0.0,  0.0,
-    -0.5,  0.5,  0.5, 1.0, 0.0, -1.0,  0.0,  0.0,
-    -0.5,  0.5, -0.5, 0.0, 0.0, -1.0,  0.0,  0.0,
-    // Bottom
-    -0.5, -0.5, -0.5, 0.0, 1.0,  0.0, -1.0,  0.0,
-     0.5, -0.5, -0.5, 1.0, 1.0,  0.0, -1.0,  0.0,
-     0.5, -0.5,  0.5, 1.0, 0.0,  0.0, -1.0,  0.0,
-    -0.5, -0.5,  0.5, 0.0, 0.0,  0.0, -1.0,  0.0,
-    // Top
-    -0.5,  0.5,  0.5, 0.0, 1.0,  0.0,  1.0,  0.0,
-     0.5,  0.5,  0.5, 1.0, 1.0,  0.0,  1.0,  0.0,
-     0.5,  0.5, -0.5, 1.0, 0.0,  0.0,  1.0,  0.0,
-    -0.5,  0.5, -0.5, 0.0, 0.0,  0.0,  1.0,  0.0
-]);
-const indices = new Uint16Array([
-     0,  1,  2,  2,  3,  0, // Front
-     4,  5,  6,  6,  7,  4, // Right
-     8,  9, 10, 10, 11,  8, // Back
-    12, 13, 14, 14, 15, 12, // Left
-    16, 17, 18, 18, 19, 16, // Bottom
-    20, 21, 22, 22, 23, 20  // Top
-]);
-
 // Buffers
-let attributeBuffer = createBuffer(device, attributes, GPUBufferUsage.VERTEX);
-let indexBuffer = createBuffer(device, indices, GPUBufferUsage.INDEX);
+let vertexBuffer = createBuffer(device, texturedCube.vertices, GPUBufferUsage.VERTEX);
+let indexBuffer = createBuffer(device, texturedCube.indices, GPUBufferUsage.INDEX);
 
 // Shaders
 const vsSource = `
@@ -272,7 +230,7 @@ const pipeline = device.createRenderPipeline({
         module: vsModule,
         entryPoint: "main",
         buffers: [
-            { // attributeBuffer
+            { // vertexBuffer
                 attributes: [
                     { // Position
                         shaderLocation: 0, // [[location(0)]]
@@ -389,7 +347,7 @@ function encodeCommands() {
     renderPass.setScissorRect(0, 0, canvas.width, canvas.height);
 
     // Attributes
-    renderPass.setVertexBuffer(0, attributeBuffer);
+    renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
 
     // Uniforms

@@ -6,7 +6,8 @@
 
 "use strict";
 
-import {mat4} from "../lib/gl-matrix-esm/index.js";
+import { mat4 } from "../lib/gl-matrix-esm/index.js";
+import { coloredCube } from "../meshes.js";
 
 // Check WebGPU support
 if (!window.navigator.gpu) {
@@ -43,42 +44,9 @@ let depthTextureView = depthTexture.createView();
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
 
-// Data
-const positions = new Float32Array([
-    // Front
-    -0.5, -0.5,  0.5,
-     0.5, -0.5,  0.5,
-     0.5,  0.5,  0.5,
-    -0.5,  0.5,  0.5,
-    // Back
-    -0.5, -0.5, -0.5,
-     0.5, -0.5, -0.5,
-     0.5,  0.5, -0.5,
-    -0.5,  0.5, -0.5
-]);
-const colors = new Float32Array([
-    0.1, 0.1, 1.0,
-    1.0, 0.1, 1.0,
-    1.0, 1.0, 1.0,
-    0.1, 1.0, 1.0,
-    0.1, 0.1, 0.1,
-    1.0, 0.1, 0.1,
-    1.0, 1.0, 0.1,
-    0.1, 1.0, 0.1
-]);
-const indices = new Uint16Array([
-    0, 1, 2, 2, 3, 0, // Front
-    1, 5, 6, 6, 2, 1, // Right
-    7, 6, 5, 5, 4, 7, // Back
-    4, 0, 3, 3, 7, 4, // Left
-    4, 5, 1, 1, 0, 4, // Bottom
-    3, 2, 6, 6, 7, 3  // Top
-]);
-
 // Buffers
-let positionBuffer = createBuffer(device, positions, GPUBufferUsage.VERTEX);
-let colorBuffer = createBuffer(device, colors, GPUBufferUsage.VERTEX);
-let indexBuffer = createBuffer(device, indices, GPUBufferUsage.INDEX);
+let vertexBuffer = createBuffer(device, coloredCube.vertices, GPUBufferUsage.VERTEX);
+let indexBuffer = createBuffer(device, coloredCube.indices, GPUBufferUsage.INDEX);
 
 // Shaders
 const vsSource = `
@@ -154,22 +122,20 @@ const pipeline = device.createRenderPipeline({
         module: vsModule,
         entryPoint: "main",
         buffers: [
-            { // Position
-                attributes: [{
-                    shaderLocation: 0, // [[location(0)]]
-                    offset: 0,
-                    format: "float32x3"
-                }],
-                arrayStride: 4 * 3, // sizeof(float) * 3
-                stepMode: "vertex"
-            },
-            { // Color
-                attributes: [{
-                    shaderLocation: 1, // [[location(1)]]
-                    offset: 0,
-                    format: "float32x3"
-                }],
-                arrayStride: 4 * 3, // sizeof(float) * 3
+            { // vertexBuffer
+                attributes: [
+                    { // Position
+                        shaderLocation: 0, // [[location(0)]]
+                        offset: 0,
+                        format: "float32x3"
+                    },
+                    { // Color
+                        shaderLocation: 1, // [[location(1)]]
+                        offset: 4 * 3,
+                        format: "float32x3"
+                    }
+                ],
+                arrayStride: 4 * 6, // sizeof(float) * 6
                 stepMode: "vertex"
             }
         ]
@@ -238,8 +204,7 @@ function encodeCommands() {
     renderPass.setScissorRect(0, 0, canvas.width, canvas.height);
 
     // Attributes
-    renderPass.setVertexBuffer(0, positionBuffer);
-    renderPass.setVertexBuffer(1, colorBuffer);
+    renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
 
     // Uniforms

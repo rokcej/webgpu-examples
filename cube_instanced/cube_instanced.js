@@ -7,7 +7,8 @@
 
 "use strict";
 
-import {mat4} from "../lib/gl-matrix-esm/index.js";
+import { mat4 } from "../lib/gl-matrix-esm/index.js";
+import { coloredCube } from "../meshes.js";
 
 // Check WebGPU support
 if (!window.navigator.gpu) {
@@ -44,32 +45,9 @@ let depthTextureView = depthTexture.createView();
 let colorTexture = context.getCurrentTexture();
 let colorTextureView = colorTexture.createView();
 
-// Data
-const attributes = new Float32Array([
-    // Position       // Color
-    // Front
-    -0.5, -0.5,  0.5, 0.1, 0.1, 1.0,
-     0.5, -0.5,  0.5, 1.0, 0.1, 1.0,
-     0.5,  0.5,  0.5, 1.0, 1.0, 1.0,
-    -0.5,  0.5,  0.5, 0.1, 1.0, 1.0,
-    // Back
-    -0.5, -0.5, -0.5, 0.1, 0.1, 0.1,
-     0.5, -0.5, -0.5, 1.0, 0.1, 0.1,
-     0.5,  0.5, -0.5, 1.0, 1.0, 0.1,
-    -0.5,  0.5, -0.5, 0.1, 1.0, 0.1
-]);
-const indices = new Uint16Array([
-    0, 1, 2, 2, 3, 0, // Front
-    1, 5, 6, 6, 2, 1, // Right
-    7, 6, 5, 5, 4, 7, // Back
-    4, 0, 3, 3, 7, 4, // Left
-    4, 5, 1, 1, 0, 4, // Bottom
-    3, 2, 6, 6, 7, 3  // Top
-]);
-
 // Buffers
-let attributeBuffer = createBuffer(device, attributes, GPUBufferUsage.VERTEX);
-let indexBuffer = createBuffer(device, indices, GPUBufferUsage.INDEX);
+let vertexBuffer = createBuffer(device, coloredCube.vertices, GPUBufferUsage.VERTEX);
+let indexBuffer = createBuffer(device, coloredCube.indices, GPUBufferUsage.INDEX);
 
 // Shaders
 const vsSource = `
@@ -154,7 +132,7 @@ const pipeline = device.createRenderPipeline({
         module: vsModule,
         entryPoint: "main",
         buffers: [
-            { // attributeBuffer
+            { // vertexBuffer
                 attributes: [
                     { // Position
                         shaderLocation: 0, // [[location(0)]]
@@ -236,7 +214,7 @@ function encodeCommands() {
     renderPass.setScissorRect(0, 0, canvas.width, canvas.height);
 
     // Attributes
-    renderPass.setVertexBuffer(0, attributeBuffer);
+    renderPass.setVertexBuffer(0, vertexBuffer);
     renderPass.setIndexBuffer(indexBuffer, "uint16");
 
     // Uniforms
