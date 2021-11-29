@@ -17,3 +17,4 @@ python -m http.server 80
 * https://github.com/tsherif/webgpu-examples
 * https://austin-eng.com/webgpu-samples/
 * https://alain.xyz/blog/raw-webgpu
+* https://learnopengl.com
