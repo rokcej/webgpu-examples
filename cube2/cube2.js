@@ -114,7 +114,7 @@ struct VSOut {
 [[block]] struct UBO {
     modelMat: mat4x4<f32>;
     pvMat: mat4x4<f32>;
-    normMat: mat3x3<f32>;
+    normMat: mat3x3<f32>; // Watch out for alignment
 };
 [[group(0), binding(0)]] var<uniform> ubo: UBO;
 
@@ -411,14 +411,23 @@ function render() {
     mat4.rotateY(modelMat, modelMat, cubeRot[1]);
     mat4.rotateZ(modelMat, modelMat, cubeRot[2]);
 
-    // http://www.lighthouse3d.com/tutorials/glsl-12-tutorial/the-normal-matrix/
     // normMat = transpose(inverse(mat3(modelMat)))
-    const normMat = mat3.create();
-    mat3.normalFromMat4(normMat, modelMat);
+    // http://www.lighthouse3d.com/tutorials/glsl-12-tutorial/the-normal-matrix/
+    const normMat = mat4.create();
+    mat4.invert(normMat, modelMat);
+    mat4.transpose(normMat, normMat);
+
+    // I used a 4x4 normal matrix because 3x3 matrices in WebGPU also use 16 bytes per row
+    // This makes writing 3x3 matrices to buffers annoying, since you need to pad each row with 4 bytes
+    // https://gpuweb.github.io/gpuweb/wgsl/#alignment-and-size
+    // AlignOf(vec3<f32>) = AlignOf(vec4<f32>) = 16
+    // SizeOf(mat3x3<f32>) = SizeOf(mat3x4<f32>) = 48
+    /*const normMat3 = mat3.create();
+    mat3.normalFromMat4(normMat3, modelMat);*/
 
     device.queue.writeBuffer(vsUniformBuffer, 0, modelMat);
     // device.queue.writeBuffer(vsUniformBuffer, 64, pvMat); 
-    device.queue.writeBuffer(vsUniformBuffer, 128, modelMat);
+    device.queue.writeBuffer(vsUniformBuffer, 128, normMat);
     // device.queue.writeBuffer(fsUniformBuffer, 0, cameraPos);
     // device.queue.writeBuffer(fsUniformBuffer, 12, lightPos);
 
