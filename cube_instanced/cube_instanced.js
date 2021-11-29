@@ -7,7 +7,7 @@
 
 "use strict";
 
-import { mat4 } from "../lib/gl-matrix-esm/index.js";
+import { mat4 } from "../lib/gl-matrix/esm/index.js";
 import { coloredCube } from "../meshes.js";
 
 // Check WebGPU support

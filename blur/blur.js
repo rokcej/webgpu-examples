@@ -10,7 +10,7 @@
 
 "use strict";
 
-import { mat4 } from "../lib//gl-matrix-esm/index.js";
+import { mat4 } from "../lib//gl-matrix/esm/index.js";
 import * as dat from "../lib/dat.gui/dat.gui.module.js"
 import { coloredCube } from "../meshes.js";
 
