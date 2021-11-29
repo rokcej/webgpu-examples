@@ -2,6 +2,7 @@
  * References:
  * - https://alain.xyz/blog/raw-webgpu
  * - https://github.com/tsherif/webgpu-examples
+ * - https://austin-eng.com/webgpu-samples/
  */
 
 "use strict";
