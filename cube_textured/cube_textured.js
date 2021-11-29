@@ -171,7 +171,6 @@ const projMat = mat4.create();
 const viewMat = mat4.create();
 const pvMat = mat4.create();
 
-const cubeRot = new Float32Array([0, 0, 0]);
 const cameraPos = new Float32Array([0, 0, 2]);
 const lightPos = new Float32Array([0.2, 0.8, 2]);
 
@@ -404,13 +403,11 @@ function encodeCommands() {
 
 function render() {
     // Update MVP matrix
-    cubeRot[1] += 0.01;
-    cubeRot[0] += 0.005;
+    let t = performance.now() / 1000;
 
     const modelMat = mat4.create();
-    mat4.rotateX(modelMat, modelMat, cubeRot[0]);
-    mat4.rotateY(modelMat, modelMat, cubeRot[1]);
-    mat4.rotateZ(modelMat, modelMat, cubeRot[2]);
+    mat4.rotateX(modelMat, modelMat, t * 0.75);
+    mat4.rotateY(modelMat, modelMat, t * 1.5);
 
     // normMat = transpose(inverse(mat3(modelMat)))
     // http://www.lighthouse3d.com/tutorials/glsl-12-tutorial/the-normal-matrix/

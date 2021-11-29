@@ -57,14 +57,14 @@ const positions = new Float32Array([
     -0.5,  0.5, -0.5
 ]);
 const colors = new Float32Array([
-    0.1, 0.1, 0.1,
-    1.0, 0.1, 0.1,
-    0.1, 1.0, 0.1,
-    1.0, 1.0, 0.1,
     0.1, 0.1, 1.0,
     1.0, 0.1, 1.0,
+    1.0, 1.0, 1.0,
     0.1, 1.0, 1.0,
-    1.0, 1.0, 1.0
+    0.1, 0.1, 0.1,
+    1.0, 0.1, 0.1,
+    1.0, 1.0, 0.1,
+    0.1, 1.0, 0.1
 ]);
 const indices = new Uint16Array([
     0, 1, 2, 2, 3, 0, // Front
@@ -115,7 +115,6 @@ const projMat = mat4.create();
 const viewMat = mat4.create();
 const pvMat = mat4.create();
 const pvmMat = mat4.create();
-const rotation = [0, 0, 0];
 
 mat4.perspective(projMat, Math.PI / 2, canvas.width / canvas.height, 0.1, 100.0);
 mat4.lookAt(viewMat, [0, 0, 2], [0, 0, 0], [0, 1, 0]);
@@ -254,13 +253,11 @@ function encodeCommands() {
 
 function render() {
     // Update MVP matrix
-    rotation[1] += 0.01;
-    rotation[0] += 0.005;
+    let t = performance.now() / 1000;
 
     const modelMat = mat4.create();
-    mat4.rotateX(modelMat, modelMat, rotation[0]);
-    mat4.rotateY(modelMat, modelMat, rotation[1]);
-    mat4.rotateZ(modelMat, modelMat, rotation[2]);
+    mat4.rotateX(modelMat, modelMat, t * 0.75);
+    mat4.rotateY(modelMat, modelMat, t * 1.5);
 
     mat4.mul(pvmMat, pvMat, modelMat);
 
