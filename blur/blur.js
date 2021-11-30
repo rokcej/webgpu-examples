@@ -13,6 +13,7 @@
 import { mat4 } from "../lib//gl-matrix/esm/index.js";
 import * as dat from "../lib/dat.gui/dat.gui.module.js"
 import { coloredCube } from "../meshes.js";
+import * as util from "../util.js";
 
 // Check WebGPU support
 if (!window.navigator.gpu) {
@@ -405,6 +406,7 @@ const scenePipeline = device.createRenderPipeline({
 });
 
 // Draw
+util.initFps();
 render();
 
 
@@ -424,6 +426,7 @@ function createBuffer(device, arr, usage) {
 };
 
 function render() {
+    util.updateFps();
     // Update MVP matrix
     let t = performance.now() / 1000;
 
@@ -469,7 +472,7 @@ function render() {
         commandEncoder.copyTextureToTexture(
             { texture: sceneTexture },
             { texture: blurTextures[1] },
-            [canvas.width, canvas.height]
+            [canvas.width, canvas.height, 1]
         );
     } else {
         for (let i = 0; i < _numPasses; ++i) {
