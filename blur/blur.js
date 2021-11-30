@@ -53,7 +53,7 @@ const sampler = device.createSampler({
 /// Gaussian blur
 let blurTextures = [0, 1].map(() => {
     return device.createTexture({
-        size: [canvas.width, canvas.height],
+        size: [canvas.width, canvas.height, 1],
         format: preferredFormat,
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
     });
@@ -61,13 +61,13 @@ let blurTextures = [0, 1].map(() => {
 let blurTextureViews = blurTextures.map(tex => tex.createView());
 /// Main scene
 let sceneTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
+    size: [canvas.width, canvas.height, 1],
     format: preferredFormat,
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
 });
 let sceneTextureView = sceneTexture.createView();
 let sceneDepthTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
+    size: [canvas.width, canvas.height, 1],
     format: "depth24plus-stencil8",
     usage: GPUTextureUsage.RENDER_ATTACHMENT // | GPUTextureUsage.COPY_SRC
 });

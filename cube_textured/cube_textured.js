@@ -46,7 +46,7 @@ const textureSpecularView = textureSpecular.createView();
 
 // Output textures
 let depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height],
+    size: [canvas.width, canvas.height, 1],
     mipLevelCount: 1, // Optional
     sampleCount: 1, // Optional
     dimension: "2d", // Optional
@@ -307,7 +307,7 @@ async function loadTexture(url) {
     const imgData = textureCanvasCtx.getImageData(0, 0, img.width, img.height).data;
 
     const texture = device.createTexture({
-        size: [img.width, img.height],
+        size: [img.width, img.height, 1],
         format: "rgba8unorm",
         usage: GPUTextureUsage.SAMPLED | GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING
     });
@@ -319,7 +319,7 @@ async function loadTexture(url) {
             bytesPerRow: img.width * 4, // 4 8-bit channels
             rowsPerImage: img.height
         },
-        [img.width, img.height]
+        [img.width, img.height, 1]
     );
     return texture;
 }
