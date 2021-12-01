@@ -15,6 +15,9 @@ import * as dat from "../lib/dat.gui/dat.gui.module.js"
 import { coloredCube } from "../meshes.js";
 import * as util from "../util.js";
 
+import { GaussianBlurRender } from "./gaussian_blur_render.js";
+import { GaussianBlurCompute } from "./gaussian_blur_compute.js";
+
 // Check WebGPU support
 if (!window.navigator.gpu) {
     document.body.innerHTML = "<div class=\"text\">Your browser does not support WebGPU</div>";
@@ -23,12 +26,28 @@ if (!window.navigator.gpu) {
 
 // Gaussian blur settings
 const settings = {
-    numPasses: 20
+    numPasses: 20,
+    useRenderPipeline: true,
+    useComputePipeline: false
 }
+// dat.gui
 const gui = new dat.GUI();
-const guiFolder = gui.addFolder("Gaussian Blur");
-guiFolder.add(settings, "numPasses", 0, 100).step(1).name("Num Passes");
-guiFolder.open();
+gui.width = 320;
+(() => { // Don't pollute the namespace
+    const folder = gui.addFolder("Gaussian Blur");
+    folder.add(settings, "numPasses", 0, 100).step(1).name("Number of Passes");
+    const renderToggle = folder.add(settings, "useRenderPipeline").name("Use Render Pipeline");
+    const computeToggle = folder.add(settings, "useComputePipeline").name("Use Compute Pipeline");
+    const updateToggle = (useRender) => {
+        settings.useRenderPipeline = useRender;
+        settings.useComputePipeline = !useRender;
+        renderToggle.updateDisplay();
+        computeToggle.updateDisplay();
+    };
+    renderToggle.onChange(useRender => updateToggle(useRender));
+    computeToggle.onChange(useCompute => updateToggle(!useCompute));
+    folder.open();
+})();
 
 // Device
 const adapter = await window.navigator.gpu.requestAdapter();
@@ -51,19 +70,10 @@ const sampler = device.createSampler({
     minFilter: "nearest",
     magFilter: "nearest"
 });
-/// Gaussian blur
-let blurTextures = [0, 1].map(() => {
-    return device.createTexture({
-        size: [canvas.width, canvas.height, 1],
-        format: preferredFormat,
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
-    });
-});
-let blurTextureViews = blurTextures.map(tex => tex.createView());
 /// Main scene
 let sceneTexture = device.createTexture({
     size: [canvas.width, canvas.height, 1],
-    format: preferredFormat,
+    format: "rgba8unorm",
     usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
 });
 let sceneTextureView = sceneTexture.createView();
@@ -113,37 +123,6 @@ fn main([[location(0)]] fragUV: vec2<f32>) -> [[location(0)]] vec4<f32> {
     return textureSample(uTexture, uSampler, fragUV);
 }
 `;
-const fsBlurSource = `
-// Gaussian blur
-// https://learnopengl.com/Advanced-Lighting/Bloom
-
-[[block]] struct UBO {
-    horizontal: u32;
-};
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
-[[group(0), binding(1)]] var uSampler: sampler;
-[[group(0), binding(2)]] var uTexture: texture_2d<f32>;
-
-[[stage(fragment)]]
-fn main([[location(0)]] fragUV: vec2<f32>) -> [[location(0)]] vec4<f32> {
-    var weights = array<f32, 5>(0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-
-    var texOffset = 1.0 / vec2<f32>(textureDimensions(uTexture));
-    var result = textureSample(uTexture, uSampler, fragUV) * weights[0];
-    if (ubo.horizontal != 0u) {
-        for (var i: i32 = 1; i < 5; i = i + 1) {
-            result = result + textureSample(uTexture, uSampler, fragUV + vec2<f32>(texOffset.x * f32(i), 0.0)) * weights[i];
-            result = result + textureSample(uTexture, uSampler, fragUV - vec2<f32>(texOffset.x * f32(i), 0.0)) * weights[i];
-        }
-    } else {
-        for (var i: i32 = 1; i < 5; i = i + 1) {
-            result = result + textureSample(uTexture, uSampler, fragUV + vec2<f32>(0.0, texOffset.y * f32(i))) * weights[i];
-            result = result + textureSample(uTexture, uSampler, fragUV - vec2<f32>(0.0, texOffset.y * f32(i))) * weights[i];
-        }
-    }
-    return result;
-}
-`;
 const vsSceneSource = `
 struct VSOut {
     [[builtin(position)]] Position: vec4<f32>;
@@ -172,7 +151,6 @@ fn main([[location(0)]] inColor: vec3<f32>) -> [[location(0)]] vec4<f32> {
 `;
 let vsQuadModule = device.createShaderModule({ code: vsQuadSource });
 let fsQuadModule = device.createShaderModule({ code: fsQuadSource });
-let fsBlurModule = device.createShaderModule({ code: fsBlurSource });
 let vsSceneModule = device.createShaderModule({ code: vsSceneSource });
 let fsSceneModule = device.createShaderModule({ code: fsSceneSource });
 
@@ -186,17 +164,11 @@ mat4.lookAt(viewMat, [0, 0, 2], [0, 0, 0], [0, 1, 0]);
 mat4.mul(pvMat, projMat, viewMat);
 
 // Uniforms
-let blurBuffers = [0, 1].map((val) => {
-    const buffer = device.createBuffer({
-        size: 4,
-        usage: GPUBufferUsage.UNIFORM,
-        mappedAtCreation: true
-    });
-    new Uint32Array(buffer.getMappedRange())[0] = val;
-    buffer.unmap();
-    return buffer;
-});
 let sceneBuffer = createBuffer(device, pvMat, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+
+// Gaussian blur pipelines
+const gaussianBlurRender = new GaussianBlurRender(device, [canvas.width, canvas.height, 1], sceneTexture, sceneTextureView, vsQuadModule);
+const gaussianBlurCompute = new GaussianBlurCompute(device, [canvas.width, canvas.height, 1], sceneTexture, sceneTextureView);
 
 // Uniform bind group
 let quadBindGroupLayout = device.createBindGroupLayout({
@@ -213,7 +185,7 @@ let quadBindGroupLayout = device.createBindGroupLayout({
         }
     ]
 });
-let quadBindGroup = device.createBindGroup({
+let quadBindGroupRender = device.createBindGroup({
     layout: quadBindGroupLayout,
     entries: [
         {
@@ -222,77 +194,20 @@ let quadBindGroup = device.createBindGroup({
         },
         {
             binding: 1,
-            resource: blurTextureViews[1]
+            resource: gaussianBlurRender.getOutputTextureView()
         }
     ]
 });
-let blurBindGroupLayout = device.createBindGroupLayout({
+let quadBindGroupCompute = device.createBindGroup({
+    layout: quadBindGroupLayout,
     entries: [
         {
             binding: 0,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
-        },
-        {
-            binding: 1,
-            visibility: GPUShaderStage.FRAGMENT,
-            sampler: { type: "filtering" }
-        },
-        {
-            binding: 2,
-            visibility: GPUShaderStage.FRAGMENT,
-            texture: { sampleType: "float" }
-        }
-    ]
-});
-let blurBindGroup0a = device.createBindGroup({ // Vertical pass (initial)
-    layout: blurBindGroupLayout,
-    entries: [
-        {
-            binding: 0,
-            resource: { buffer: blurBuffers[0] }
-        },
-        {
-            binding: 1,
             resource: sampler
         },
         {
-            binding: 2,
-            resource: sceneTextureView
-        }
-    ]
-});
-let blurBindGroup0b = device.createBindGroup({ // Vertical pass
-    layout: blurBindGroupLayout,
-    entries: [
-        {
-            binding: 0,
-            resource: { buffer: blurBuffers[0] }
-        },
-        {
             binding: 1,
-            resource: sampler
-        },
-        {
-            binding: 2,
-            resource: blurTextureViews[1]
-        }
-    ]
-});
-let blurBindGroup1 = device.createBindGroup({ // Horizontal pass
-    layout: blurBindGroupLayout,
-    entries: [
-        {
-            binding: 0,
-            resource: { buffer: blurBuffers[1] }
-        },
-        {
-            binding: 1,
-            resource: sampler
-        },
-        {
-            binding: 2,
-            resource: blurTextureViews[0]
+            resource: gaussianBlurCompute.getOutputTextureView()
         }
     ]
 });
@@ -324,28 +239,6 @@ const quadPipeline = device.createRenderPipeline({
     // Fragment shader
     fragment: {
         module: fsQuadModule,
-        entryPoint: "main",
-        targets: [{ format: preferredFormat }],
-    },
-    // Rasterization
-    primitive: {
-        // frontFace: "ccw",
-        // cullMode: "back",
-        topology: "triangle-list"
-    }
-});
-const blurPipeline = device.createRenderPipeline({
-    layout: device.createPipelineLayout({
-        bindGroupLayouts: [blurBindGroupLayout]
-    }),
-    // Vertex shader
-    vertex: {
-        module: vsQuadModule,
-        entryPoint: "main",
-    },
-    // Fragment shader
-    fragment: {
-        module: fsBlurModule,
         entryPoint: "main",
         targets: [{ format: preferredFormat }],
     },
@@ -388,7 +281,7 @@ const scenePipeline = device.createRenderPipeline({
         module: fsSceneModule,
         entryPoint: "main",
         targets: [{
-            format: preferredFormat
+            format: "rgba8unorm"
         }],
     },
     // Rasterization
@@ -467,41 +360,11 @@ function render() {
     scenePass.endPass();
 
     // Gaussian blur
-    const _numPasses = settings.numPasses;
-    if (_numPasses == 0) {
-        commandEncoder.copyTextureToTexture(
-            { texture: sceneTexture },
-            { texture: blurTextures[1] },
-            [canvas.width, canvas.height, 1]
-        );
-    } else {
-        for (let i = 0; i < _numPasses; ++i) {
-            // Vertical pass
-            const blurPass0 = commandEncoder.beginRenderPass({
-                colorAttachments: [{
-                    view: blurTextureViews[0],
-                    loadValue: [0, 0, 0, 1],
-                    storeOp: "store"
-                }]
-            });
-            blurPass0.setPipeline(blurPipeline);
-            blurPass0.setBindGroup(0, i == 0 ? blurBindGroup0a : blurBindGroup0b);
-            blurPass0.draw(6, 1, 0, 0);
-            blurPass0.endPass();
-            // Horizontal pass
-            const blurPass1 = commandEncoder.beginRenderPass({
-                colorAttachments: [{
-                    view: blurTextureViews[1],
-                    loadValue: [0, 0, 0, 1],
-                    storeOp: "store"
-                }]
-            });
-            blurPass1.setPipeline(blurPipeline);
-            blurPass1.setBindGroup(0, blurBindGroup1);
-            blurPass1.draw(6, 1, 0, 0);
-            blurPass1.endPass();
-        }
-    }
+    const _useCompute = settings.useComputePipeline;
+    if (_useCompute)
+        gaussianBlurCompute.render(commandEncoder, settings.numPasses);
+    else
+        gaussianBlurRender.render(commandEncoder, settings.numPasses);
 
     // Display
     const quadPass = commandEncoder.beginRenderPass({
@@ -512,7 +375,7 @@ function render() {
         }]
     });
     quadPass.setPipeline(quadPipeline);
-    quadPass.setBindGroup(0, quadBindGroup);
+    quadPass.setBindGroup(0, _useCompute ? quadBindGroupCompute : quadBindGroupRender);
     quadPass.draw(6, 1, 0, 0);
     quadPass.endPass();
 
