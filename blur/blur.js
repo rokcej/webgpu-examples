@@ -360,11 +360,12 @@ function render() {
     scenePass.endPass();
 
     // Gaussian blur
-    const _useCompute = settings.useComputePipeline;
-    if (_useCompute)
+    const _useComputePipeline = settings.useComputePipeline; // We don't want any async shenanigans
+    if (_useComputePipeline) {
         gaussianBlurCompute.render(commandEncoder, settings.numPasses);
-    else
+    } else {
         gaussianBlurRender.render(commandEncoder, settings.numPasses);
+    }
 
     // Display
     const quadPass = commandEncoder.beginRenderPass({
@@ -375,7 +376,7 @@ function render() {
         }]
     });
     quadPass.setPipeline(quadPipeline);
-    quadPass.setBindGroup(0, _useCompute ? quadBindGroupCompute : quadBindGroupRender);
+    quadPass.setBindGroup(0, _useComputePipeline ? quadBindGroupCompute : quadBindGroupRender);
     quadPass.draw(6, 1, 0, 0);
     quadPass.endPass();
 
