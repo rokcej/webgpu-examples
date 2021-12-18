@@ -50,29 +50,44 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
 const presentationFormat = context.getPreferredFormat(adapter);
-context.configure({
-    device: device,
-    format: presentationFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT
-});
 
 // Output textures
-let depthTexture = device.createTexture({
-    size: [canvas.width, canvas.height, 1],
-    sampleCount: sampleCount,
-    format: "depth24plus",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT
-});
-let depthTextureView = depthTexture.createView();
-let colorTexture = context.getCurrentTexture();
-let colorTextureView = colorTexture.createView();
-let msaaTexture = device.createTexture({
-    size: [canvas.width, canvas.height, 1],
-    sampleCount: sampleCount,
-    format: presentationFormat,
-    usage: GPUTextureUsage.RENDER_ATTACHMENT
-});
-let msaaTextureView = msaaTexture.createView();
+let depthTexture, depthTextureView;
+let colorTexture, colorTextureView;
+let msaaTexture, msaaTextureView;
+
+function configureContext() {
+    context.configure({
+        device: device,
+        format: presentationFormat,
+        size: [canvas.width, canvas.height, 1],
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+    });
+
+    if (depthTexture)
+        depthTexture.destroy();
+    depthTexture = device.createTexture({
+        size: [canvas.width, canvas.height, 1],
+        sampleCount: sampleCount,
+        format: "depth24plus",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+    });
+    depthTextureView = depthTexture.createView();
+    if (colorTexture)
+        colorTexture.destroy();
+    colorTexture = context.getCurrentTexture();
+    colorTextureView = colorTexture.createView();
+    if (msaaTexture)
+        msaaTexture.destroy();
+    msaaTexture = device.createTexture({
+        size: [canvas.width, canvas.height, 1],
+        sampleCount: sampleCount,
+        format: presentationFormat,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+    });
+    msaaTextureView = msaaTexture.createView();
+}
+configureContext();
 
 // Shaders
 let renderModule = device.createShaderModule({ code: renderSource });
@@ -159,6 +174,12 @@ canvas.addEventListener("mousemove", (event) => {
         else if (camera.rot[0] < -0.5 * Math.PI + eps)
             camera.rot[0] = -0.5 * Math.PI + eps;
     }
+});
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    configureContext();
+    mat4.perspective(projMat, camera.fov, canvas.width / canvas.height, camera.near, camera.far);
 });
 
 
