@@ -1,3 +1,4 @@
+// Vertex and fragment shaders
 export const renderSource = `
 struct UBO {
     pvmMat: mat4x4<f32>;
@@ -20,10 +21,11 @@ struct VSOut {
 
 [[stage(vertex)]]
 fn vs_main(vsIn: VSIn) -> VSOut {
+    let particleSize = 0.05;
 	// http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
 	var worldPos = vsIn.pos +
-		ubo.right * vsIn.quadPos.x * 0.05 +
-		ubo.up    * vsIn.quadPos.y * 0.05;
+		ubo.right * vsIn.quadPos.x * particleSize +
+		ubo.up    * vsIn.quadPos.y * particleSize;
 
 	var vsOut: VSOut;
 	vsOut.pos = ubo.pvmMat * vec4<f32>(worldPos, 1.0);
@@ -35,22 +37,30 @@ fn vs_main(vsIn: VSIn) -> VSOut {
 [[stage(fragment)]]
 fn fs_main(fsIn: VSOut) -> [[location(0)]] vec4<f32> {
 	var color = fsIn.color;
-	color.a = color.a * max(1.0 - length(fsIn.quadPos), 0.0);
+    color.a = color.a * smoothStep(1.0, 0.0, length(fsIn.quadPos));
     return color;
 }
 `;
+
+// Compute shader
 export const computeSource = `
 struct UBO {
-	seed: vec4<f32>;
+	seed: f32;
 	deltaTime: f32;
+    time: f32;
+    flowScale: f32;
+	flowEvolution: f32;
+    flowSpeed: f32;
+    artisticMode: u32;
 	numParticles: u32;
 };
 
 struct Particle {
 	position: vec3<f32>;
-	lifetime: f32;
+	life: f32;
 	color: vec4<f32>;
-	velocity: vec3<f32>;
+    age: f32;
+    artisticMode: u32;
 };
 
 struct Data {
@@ -61,10 +71,7 @@ struct Data {
 [[group(0), binding(1)]] var<storage, read_write> data: Data;
 
 
-// https://stackoverflow.com/a/4275343
-fn rand2(p: vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(12.9898, 4.1414)) % 3.14) * 43758.5453);
-}
+let PI: f32 = 3.1415926535897932384626433;
 
 
 ///////////////////////////////////////////////////////////
@@ -204,12 +211,86 @@ fn simplexNoise(v: vec4<f32>) -> f32 {
 ///////////////////////////////////////////////////////////
 
 
+// Curl noise
 fn getPotential(p: vec4<f32>) -> vec3<f32> {
-	return vec3<f32>(0.0);
+    // Simplex noise sampled at large offsets
+	return vec3<f32>(
+        simplexNoise(p),
+        simplexNoise(vec4<f32>(p.z - 9.61, p.x + 3.14, p.y + 9.77, p.w)),
+		simplexNoise(vec4<f32>(p.y - 2.32, p.z + 12.7, p.x + 11.97, p.w))
+    );
+}
+fn getVelocity(pos: vec3<f32>, time: f32) -> vec3<f32> {
+	var p = vec4(pos / ubo.flowScale, time * ubo.flowEvolution);
+	var pot = getPotential(p);
+
+	var eps = 0.0001;
+	var dx = vec4<f32>(eps, 0.0, 0.0, 0.0);
+	var dy = vec4<f32>(0.0, eps, 0.0, 0.0);
+	var dz = vec4<f32>(0.0, 0.0, eps, 0.0);
+
+	// Partial derivatives
+	var dp_dx = getPotential(p + dx);
+	var dp_dy = getPotential(p + dy);
+	var dp_dz = getPotential(p + dz);
+
+    var invEps = 1.0 / eps;
+	var dp3_dy = (dp_dy.z - pot.z) * invEps;
+	var dp2_dz = (dp_dz.y - pot.y) * invEps;
+	var dp1_dz = (dp_dz.x - pot.x) * invEps;
+	var dp3_dx = (dp_dx.z - pot.z) * invEps;
+	var dp2_dx = (dp_dx.y - pot.y) * invEps;
+	var dp1_dy = (dp_dy.x - pot.x) * invEps;
+
+	return vec3<f32>(dp3_dy - dp2_dz, dp1_dz - dp3_dx, dp2_dx - dp1_dy) * ubo.flowSpeed;
 }
 
-fn getVelocity(pos: vec3<f32>, time: f32) -> vec3<f32> {
-	return vec3<f32>(0.0);
+
+// Random number generation
+var<private> xorshift32_state: u32 = 0u;
+fn xorshift32() -> u32 {
+    var s = xorshift32_state;
+    s = s ^ (s << 13u);
+    s = s ^ (s >> 17u);
+    s = s ^ (s << 5u);
+    xorshift32_state = s;
+    return xorshift32_state;
+}
+fn rand() -> f32 {
+    return f32(xorshift32()) / f32(~0u);
+}
+fn srand(seed: f32) {
+    xorshift32_state = u32(seed * f32(~0u));
+}
+
+// Uniform unit sphere sampling
+fn sampleUnitSphere() -> vec3<f32> {
+	// Uniform spherical coordinates
+	var u   = rand(); // u ∈ [0, 1]
+	var v   = rand() * 2.0 - 1.0; // v ∈ [-1, 1]
+	var phi = rand() * 2.0 * PI; // φ ∈ [0, 2π)
+
+	var r = pow(u, 1.0 / 3.0); // r ∈ [0, 1]
+	var cosTheta = -v; // θ ∈ [0, π]
+	var sinTheta = sqrt(1.0 - v * v);
+
+	return vec3<f32>(
+		r * sinTheta * cos(phi),
+		r * sinTheta * sin(phi),
+		r * cosTheta
+	);
+}
+fn sampleUnitSphereSurface() -> vec3<f32> {
+	// Uniform sampling of unit sphere surface
+	// http://corysimon.github.io/articles/uniformdistn-on-sphere/
+	var cosTheta = 1.0 - 2.0 * rand();
+	var sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+	var phi = 2.0 * PI * rand();
+	return vec3<f32>(
+		sinTheta * cos(phi),
+		sinTheta * sin(phi),
+		cosTheta
+	);
 }
 
 
@@ -219,9 +300,48 @@ fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
         return;
     }
 
-	var particle = data.particles[gid.x];
-	particle.velocity.y = particle.velocity.y - 3.14 * ubo.deltaTime;
-	particle.position = particle.position + particle.velocity * ubo.deltaTime;
-	data.particles[gid.x] = particle;
+    let spawnRadius = 60.0;
+    let spawnRadiusArtistic = 25.0;
+
+	var particle = data.particles[gid.x]; // Read particle data
+
+    if (ubo.artisticMode == particle.artisticMode) {
+        particle.life = particle.life - ubo.deltaTime;
+    } else {
+        particle.life = 0.0;
+    }
+
+    if (particle.life > 0.0) {
+        var vel = getVelocity(particle.position, ubo.time);
+
+        if (!bool(ubo.artisticMode)) {
+            particle.position = particle.position + vel * ubo.deltaTime;
+        } else {
+            particle.position = particle.position + vel * ubo.deltaTime * 2.0;
+        }
+
+        particle.age = particle.age + ubo.deltaTime;
+        particle.color = vec4<f32>(
+            (abs(vel) / (2.0 * ubo.flowSpeed)),
+            min(particle.life, min(particle.age * 4.0, 1.0))
+        );
+    } else {
+        srand((ubo.seed + f32(gid.x) / f32(ubo.numParticles)) * 0.5); // Init RNG
+
+        if (!bool(ubo.artisticMode)) {
+            particle.position = sampleUnitSphere() * spawnRadius;
+            particle.life = rand() * 15.0 + 15.0;
+        } else {
+            particle.position = sampleUnitSphereSurface() * spawnRadiusArtistic + 
+                (vec3<f32>(rand(), rand(), rand()) - 0.5); // Add noise to get rid of artifacts
+            particle.life = rand() * 3.0 + 3.0;
+        }
+
+        particle.artisticMode = ubo.artisticMode;
+        particle.age = 0.0;
+        particle.color = vec4<f32>(0.0);
+    }
+
+	data.particles[gid.x] = particle; // Write particle data
 }
 `;

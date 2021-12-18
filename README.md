@@ -9,7 +9,7 @@ Currently, WebGPU isn't available in most browsers. To use it, you can either:
 You can run examples locally with:
 
 ```bash
-python -m http.server 80
+python ./server.py
 ```
 
 ## References
