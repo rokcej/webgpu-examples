@@ -70,7 +70,7 @@ struct VSOut {
     [[location(2)]] fragNorm: vec3<f32>;
 };
 
-[[block]] struct UBO {
+struct UBO {
     modelMat: mat4x4<f32>;
     pvMat: mat4x4<f32>;
     normMat: mat3x3<f32>; // Watch out for alignment
@@ -95,7 +95,7 @@ const fsSource = `
 let shininess: f32 = 32.0;
 let ambient: f32 = 0.1;
 
-[[block]] struct UBO {
+struct UBO {
     cameraPos: vec3<f32>;
     lightPos: vec3<f32>;
 };

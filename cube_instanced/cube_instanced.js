@@ -56,7 +56,7 @@ struct VSOut {
     [[location(0)]] color: vec3<f32>;
 };
 
-[[block]] struct UBO {
+struct UBO {
     mvpMat: [[stride(64)]] array<mat4x4<f32>, 100>;
 };
 [[binding(0), group(0)]] var<uniform> uniforms: UBO;

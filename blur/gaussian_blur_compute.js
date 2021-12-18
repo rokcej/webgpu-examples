@@ -4,7 +4,7 @@ const csBlurSource = `
 // Gaussian blur
 // https://learnopengl.com/Advanced-Lighting/Bloom
 
-[[block]] struct UBO {
+struct UBO {
     horizontal: u32;
 };
 [[group(0), binding(0)]] var<uniform> ubo: UBO;
