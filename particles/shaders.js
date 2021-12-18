@@ -109,7 +109,7 @@ fn grad4(j: f32, ip: vec4<f32>) -> vec4<f32> {
         0.0
     );
     p.w = 1.5 - dot(abs(p.xyz), ones.xyz);
-    var s = vec4<f32>(p < vec4(0.0));
+    var s = vec4<f32>(p < vec4<f32>(0.0));
     p = vec4<f32>(
         p.xyz + (s.xyz*2.0 - 1.0) * s.www,
         p.w
@@ -138,12 +138,12 @@ fn simplexNoise(v: vec4<f32>) -> f32 {
     // Rank sorting originally contributed by Bill Licea-Kane, AMD (formerly ATI)
     var isX = step(x0.yzw, x0.xxx);
     var isYZ = step(x0.zww, x0.yyz);
-    // i0.x = dot(isX, vec3(1.0));
+    // i0.x = dot(isX, vec3<f32>(1.0));
     var i0 = vec4<f32>(
         isX.x + isX.y + isX.z,
         1.0 - isX
     );
-    //  i0.y += dot( isYZ.xy, vec2( 1.0 ) );
+    //  i0.y += dot( isYZ.xy, vec2<f32>( 1.0 ) );
     i0.y = i0.y + isYZ.x + isYZ.y;
     //i0.zw = i0.zw + 1.0 - isYZ.xy;
     i0 = vec4<f32>(
@@ -202,8 +202,8 @@ fn simplexNoise(v: vec4<f32>) -> f32 {
     m0 = m0 * m0;
     m1 = m1 * m1;
     return 49.0 * (
-        dot(m0*m0, vec3(dot(p0, x0), dot(p1, x1), dot(p2, x2))) +
-        dot(m1*m1, vec2(dot(p3, x3), dot(p4, x4)))
+        dot(m0*m0, vec3<f32>(dot(p0, x0), dot(p1, x1), dot(p2, x2))) +
+        dot(m1*m1, vec2<f32>(dot(p3, x3), dot(p4, x4)))
     );
 }
 
@@ -221,7 +221,7 @@ fn getPotential(p: vec4<f32>) -> vec3<f32> {
     );
 }
 fn getVelocity(pos: vec3<f32>, time: f32) -> vec3<f32> {
-	var p = vec4(pos / ubo.flowScale, time * ubo.flowEvolution);
+	var p = vec4<f32>(pos / ubo.flowScale, time * ubo.flowEvolution);
 	var pot = getPotential(p);
 
 	var eps = 0.0001;
