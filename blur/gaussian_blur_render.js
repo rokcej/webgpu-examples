@@ -3,14 +3,14 @@ const fsBlurSource = `
 // https://learnopengl.com/Advanced-Lighting/Bloom
 
 struct UBO {
-    horizontal: u32;
+    horizontal: u32
 };
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
-[[group(0), binding(1)]] var uSampler: sampler;
-[[group(0), binding(2)]] var uTexture: texture_2d<f32>;
+@group(0) @binding(0) var<uniform> ubo: UBO;
+@group(0) @binding(1) var uSampler: sampler;
+@group(0) @binding(2) var uTexture: texture_2d<f32>;
 
-[[stage(fragment)]]
-fn main([[location(0)]] fragUV: vec2<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) fragUV: vec2<f32>) -> @location(0) vec4<f32> {
     var weights = array<f32, 5>(0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 
     var uvStep = 1.0 / vec2<f32>(textureDimensions(uTexture));
@@ -176,26 +176,28 @@ export class GaussianBlurRender {
                 const blurPass0 = commandEncoder.beginRenderPass({
                     colorAttachments: [{
                         view: this.blurTextureViews[0],
-                        loadValue: [0, 0, 0, 1],
+                        clearValue: [0, 0, 0, 1],
+                        loadOp: "clear",
                         storeOp: "store"
                     }]
                 });
                 blurPass0.setPipeline(this.blurPipeline);
                 blurPass0.setBindGroup(0, i == 0 ? this.blurBindGroup0a : this.blurBindGroup0b);
                 blurPass0.draw(6, 1, 0, 0);
-                blurPass0.endPass();
+                blurPass0.end();
                 // Horizontal pass
                 const blurPass1 = commandEncoder.beginRenderPass({
                     colorAttachments: [{
                         view: this.blurTextureViews[1],
-                        loadValue: [0, 0, 0, 1],
+                        clearValue: [0, 0, 0, 1],
+                        loadOp: "clear",
                         storeOp: "store"
                     }]
                 });
                 blurPass1.setPipeline(this.blurPipeline);
                 blurPass1.setBindGroup(0, this.blurBindGroup1);
                 blurPass1.draw(6, 1, 0, 0);
-                blurPass1.endPass();
+                blurPass1.end();
             }
         }
     }

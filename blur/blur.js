@@ -62,7 +62,8 @@ const preferredFormat = context.getPreferredFormat(adapter);
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    compositingAlphaMode: "opaque"
 });
 
 // Textures
@@ -94,12 +95,12 @@ let indexBuffer = createBuffer(device, coloredCube.indices, GPUBufferUsage.INDEX
 // Shaders
 const vsQuadSource = `
 struct VSOut {
-    [[builtin(position)]] Position: vec4<f32>;
-    [[location(0)]] fragUV: vec2<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) fragUV: vec2<f32>
 };
 
-[[stage(vertex)]]
-fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VSOut {
+@stage(vertex)
+fn main(@builtin(vertex_index) VertexIndex : u32) -> VSOut {
     var pos = array<vec2<f32>, 6>(
         vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0, -1.0), vec2<f32>( 1.0,  1.0),
         vec2<f32>( 1.0,  1.0), vec2<f32>(-1.0,  1.0), vec2<f32>(-1.0, -1.0)
@@ -109,43 +110,43 @@ fn main([[builtin(vertex_index)]] VertexIndex : u32) -> VSOut {
         vec2<f32>(1.0, 0.0), vec2<f32>(0.0, 0.0), vec2<f32>(0.0, 1.0)
     );
     var vsOut: VSOut;
-    vsOut.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+    vsOut.position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
     vsOut.fragUV = uv[VertexIndex];
     return vsOut;
 }
 `;
 const fsQuadSource = `
-[[group(0), binding(0)]] var uSampler: sampler;
-[[group(0), binding(1)]] var uTexture: texture_2d<f32>;
+@group(0) @binding(0) var uSampler: sampler;
+@group(0) @binding(1) var uTexture: texture_2d<f32>;
 
-[[stage(fragment)]]
-fn main([[location(0)]] fragUV: vec2<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) fragUV: vec2<f32>) -> @location(0) vec4<f32> {
     return textureSample(uTexture, uSampler, fragUV);
 }
 `;
 const vsSceneSource = `
 struct VSOut {
-    [[builtin(position)]] Position: vec4<f32>;
-    [[location(0)]] color: vec3<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) color: vec3<f32>
 };
 
 struct UBO {
-    mvpMat: mat4x4<f32>;
+    mvpMat: mat4x4<f32>
 };
-[[binding(0), group(0)]] var<uniform> uniforms: UBO;
+@binding(0) @group(0) var<uniform> uniforms: UBO;
 
-[[stage(vertex)]]
-fn main([[location(0)]] inPos: vec3<f32>,
-        [[location(1)]] inColor: vec3<f32>) -> VSOut {
+@stage(vertex)
+fn main(@location(0) inPos: vec3<f32>,
+        @location(1) inColor: vec3<f32>) -> VSOut {
     var vsOut: VSOut;
-    vsOut.Position = uniforms.mvpMat * vec4<f32>(inPos, 1.0);
+    vsOut.position = uniforms.mvpMat * vec4<f32>(inPos, 1.0);
     vsOut.color = inColor;
     return vsOut;
 }
 `;
 const fsSceneSource = `
-[[stage(fragment)]]
-fn main([[location(0)]] inColor: vec3<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) inColor: vec3<f32>) -> @location(0) vec4<f32> {
     return vec4<f32>(inColor, 1.0);
 }
 `;
@@ -261,12 +262,12 @@ const scenePipeline = device.createRenderPipeline({
             { // vertexBuffer
                 attributes: [
                     { // Position
-                        shaderLocation: 0, // [[location(0)]]
+                        shaderLocation: 0, // @location(0)
                         offset: 0,
                         format: "float32x3"
                     },
                     { // Color
-                        shaderLocation: 1, // [[location(1)]]
+                        shaderLocation: 1, // @location(1)
                         offset: 4 * 3,
                         format: "float32x3"
                     }
@@ -341,14 +342,17 @@ function render() {
     const scenePass = commandEncoder.beginRenderPass({
         colorAttachments: [{
             view: sceneTextureView,
-            loadValue: [0, 0, 0, 1],
+            clearValue: [0, 0, 0, 1],
+            loadOp: "clear",
             storeOp: "store"
         }],
         depthStencilAttachment: {
             view: sceneDepthTextureView,
-            depthLoadValue: 1,
+            depthClearValue: 1,
+            depthLoadOp: "clear",
             depthStoreOp: "store",
-            stencilLoadValue: 0,
+            stencilClearValue: 0,
+            stencilLoadOp: "clear",
             stencilStoreOp: "store"
         }
     });
@@ -357,7 +361,7 @@ function render() {
     scenePass.setIndexBuffer(indexBuffer, "uint16");
     scenePass.setBindGroup(0, sceneBindGroup);
     scenePass.drawIndexed(36);
-    scenePass.endPass();
+    scenePass.end();
 
     // Gaussian blur
     const _useComputePipeline = settings.useComputePipeline; // We don't want any async shenanigans
@@ -371,14 +375,15 @@ function render() {
     const quadPass = commandEncoder.beginRenderPass({
         colorAttachments: [{
             view: colorTextureView,
-            loadValue: [0, 0, 0, 1],
+            clearValue: [0, 0, 0, 1],
+            loadOp: "clear",
             storeOp: "store"
         }]
     });
     quadPass.setPipeline(quadPipeline);
     quadPass.setBindGroup(0, _useComputePipeline ? quadBindGroupCompute : quadBindGroupRender);
     quadPass.draw(6, 1, 0, 0);
-    quadPass.endPass();
+    quadPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
 

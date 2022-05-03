@@ -29,7 +29,8 @@ const preferredFormat = context.getPreferredFormat(adapter);
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    compositingAlphaMode: "opaque"
 });
 
 // Textures
@@ -52,28 +53,28 @@ let indexBuffer = createBuffer(device, coloredCube.indices, GPUBufferUsage.INDEX
 // Shaders
 const vsSource = `
 struct VSOut {
-    [[builtin(position)]] Position: vec4<f32>;
-    [[location(0)]] color: vec3<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) color: vec3<f32>
 };
 
 struct UBO {
-    mvpMat: [[stride(64)]] array<mat4x4<f32>, 100>;
+    mvpMat: array<mat4x4<f32>, 100>
 };
-[[binding(0), group(0)]] var<uniform> uniforms: UBO;
+@binding(0) @group(0) var<uniform> uniforms: UBO;
 
-[[stage(vertex)]]
-fn main([[builtin(instance_index)]] instanceIdx : u32,
-        [[location(0)]] inPos: vec3<f32>,
-        [[location(1)]] inColor: vec3<f32>) -> VSOut {
+@stage(vertex)
+fn main(@builtin(instance_index) instanceIdx : u32,
+        @location(0) inPos: vec3<f32>,
+        @location(1) inColor: vec3<f32>) -> VSOut {
     var vsOut: VSOut;
-    vsOut.Position = uniforms.mvpMat[instanceIdx] * vec4<f32>(inPos, 1.0);
+    vsOut.position = uniforms.mvpMat[instanceIdx] * vec4<f32>(inPos, 1.0);
     vsOut.color = inColor;
     return vsOut;
 }
 `;
 const fsSource = `
-[[stage(fragment)]]
-fn main([[location(0)]] inColor: vec3<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) inColor: vec3<f32>) -> @location(0) vec4<f32> {
     return vec4<f32>(inColor, 1.0);
 }
 `;
@@ -196,14 +197,17 @@ function encodeCommands() {
     const renderPass = commandEncoder.beginRenderPass({
         colorAttachments: [{
             view: colorTextureView,
-            loadValue: [0, 0, 0, 1],
+            clearValue: [0, 0, 0, 1],
+            loadOp: "clear",
             storeOp: "store"
         }],
         depthStencilAttachment: {
             view: depthTextureView,
-            depthLoadValue: 1,
+            depthClearValue: 1,
+            depthLoadOp: "clear",
             depthStoreOp: "store",
-            stencilLoadValue: 0,
+            stencilClearValue: 0,
+            stencilLoadOp: "clear",
             stencilStoreOp: "store"
         }
     });
@@ -221,7 +225,7 @@ function encodeCommands() {
     renderPass.setBindGroup(0, uniformBindGroup);
 
     renderPass.drawIndexed(36, numInstances, 0, 0);
-    renderPass.endPass();
+    renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
 }

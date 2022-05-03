@@ -5,15 +5,15 @@ const csBlurSource = `
 // https://learnopengl.com/Advanced-Lighting/Bloom
 
 struct UBO {
-    horizontal: u32;
+    horizontal: u32
 };
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
-[[group(0), binding(1)]] var uSampler: sampler;
-[[group(0), binding(2)]] var uInTexture: texture_2d<f32>;
-[[group(0), binding(3)]] var uOutTexture : texture_storage_2d<rgba8unorm, write>;
+@group(0) @binding(0) var<uniform> ubo: UBO;
+@group(0) @binding(1) var uSampler: sampler;
+@group(0) @binding(2) var uInTexture: texture_2d<f32>;
+@group(0) @binding(3) var uOutTexture : texture_storage_2d<rgba8unorm, write>;
 
-[[stage(compute), workgroup_size(${WORKGROUP_SIZE[0]}, ${WORKGROUP_SIZE[1]})]]
-fn main([[builtin(global_invocation_id)]] gid : vec3<u32>) {
+@stage(compute) @workgroup_size(${WORKGROUP_SIZE[0]}, ${WORKGROUP_SIZE[1]})
+fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     var texDim: vec2<i32> = textureDimensions(uInTexture);
 
     if (gid.x >= u32(texDim.x) || gid.y >= u32(texDim.y)) {
@@ -202,12 +202,12 @@ export class GaussianBlurCompute {
             for (let i = 0; i < numPasses; ++i) {
                 // Vertical pass
                 blurPass.setBindGroup(0, i == 0 ? this.blurBindGroup0a : this.blurBindGroup0b);
-                blurPass.dispatch(numWorkgroups[0], numWorkgroups[1]);
+                blurPass.dispatchWorkgroups(numWorkgroups[0], numWorkgroups[1]);
                 // Horizontal pass
                 blurPass.setBindGroup(0, this.blurBindGroup1);
-                blurPass.dispatch(numWorkgroups[0], numWorkgroups[1]);
+                blurPass.dispatchWorkgroups(numWorkgroups[0], numWorkgroups[1]);
             }
-            blurPass.endPass();
+            blurPass.end();
         }
     }
 

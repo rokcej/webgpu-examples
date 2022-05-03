@@ -29,7 +29,8 @@ const preferredFormat = context.getPreferredFormat(adapter);
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
+    compositingAlphaMode: "opaque"
 });
 
 // Input textures
@@ -64,27 +65,27 @@ let indexBuffer = createBuffer(device, texturedCube.indices, GPUBufferUsage.INDE
 // Shaders
 const vsSource = `
 struct VSOut {
-    [[builtin(position)]] Position: vec4<f32>;
-    [[location(0)]] fragPos: vec3<f32>;
-    [[location(1)]] fragUV: vec2<f32>;
-    [[location(2)]] fragNorm: vec3<f32>;
+    @builtin(position) position: vec4<f32>,
+    @location(0) fragPos: vec3<f32>,
+    @location(1) fragUV: vec2<f32>,
+    @location(2) fragNorm: vec3<f32>
 };
 
 struct UBO {
-    modelMat: mat4x4<f32>;
-    pvMat: mat4x4<f32>;
-    normMat: mat3x3<f32>; // Watch out for alignment
+    modelMat: mat4x4<f32>,
+    pvMat: mat4x4<f32>,
+    normMat: mat3x3<f32> // Watch out for alignment
 };
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
+@group(0) @binding(0) var<uniform> ubo: UBO;
 
-[[stage(vertex)]]
-fn main([[location(0)]] inPos: vec3<f32>,
-        [[location(2)]] inUV: vec2<f32>,
-        [[location(1)]] inNorm: vec3<f32>) -> VSOut {            
+@stage(vertex)
+fn main(@location(0) inPos: vec3<f32>,
+        @location(2) inUV: vec2<f32>,
+        @location(1) inNorm: vec3<f32>) -> VSOut {            
     var worldPos: vec4<f32> = ubo.modelMat * vec4<f32>(inPos, 1.0);
 
     var vsOut: VSOut;
-    vsOut.Position =  ubo.pvMat * worldPos;
+    vsOut.position =  ubo.pvMat * worldPos;
     vsOut.fragPos = worldPos.xyz / worldPos.w;
     vsOut.fragUV = inUV;
     vsOut.fragNorm = ubo.normMat * inNorm;
@@ -96,18 +97,18 @@ let shininess: f32 = 32.0;
 let ambient: f32 = 0.1;
 
 struct UBO {
-    cameraPos: vec3<f32>;
-    lightPos: vec3<f32>;
+    cameraPos: vec3<f32>,
+    lightPos: vec3<f32>
 };
-[[group(0), binding(1)]] var<uniform> ubo: UBO;
-[[group(0), binding(2)]] var uSampler: sampler;
-[[group(0), binding(3)]] var uTexture: texture_2d<f32>;
-[[group(0), binding(4)]] var uTextureSpecular: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> ubo: UBO;
+@group(0) @binding(2) var uSampler: sampler;
+@group(0) @binding(3) var uTexture: texture_2d<f32>;
+@group(0) @binding(4) var uTextureSpecular: texture_2d<f32>;
 
-[[stage(fragment)]]
-fn main([[location(0)]] fragPos: vec3<f32>,
-        [[location(1)]] fragUV: vec2<f32>,
-        [[location(2)]] fragNorm: vec3<f32>) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main(@location(0) fragPos: vec3<f32>,
+        @location(1) fragUV: vec2<f32>,
+        @location(2) fragNorm: vec3<f32>) -> @location(0) vec4<f32> {
 
     var V: vec3<f32> = normalize(ubo.cameraPos - fragPos);
     var L: vec3<f32> = normalize(ubo.lightPos - fragPos);
@@ -329,14 +330,17 @@ function encodeCommands() {
     const renderPass = commandEncoder.beginRenderPass({
         colorAttachments: [{
             view: colorTextureView,
-            loadValue: [0, 0, 0, 1],
+            clearValue: [0, 0, 0, 1],
+            loadOp: "clear",
             storeOp: "store"
         }],
         depthStencilAttachment: {
             view: depthTextureView,
-            depthLoadValue: 1,
+            depthClearValue: 1,
+            depthLoadOp: "clear",
             depthStoreOp: "store",
-            stencilLoadValue: 0,
+            stencilClearValue: 0,
+            stencilLoadOp: "clear",
             stencilStoreOp: "store"
         }
     });
@@ -354,7 +358,7 @@ function encodeCommands() {
     renderPass.setBindGroup(0, uniformBindGroup);
 
     renderPass.drawIndexed(36);
-    renderPass.endPass();
+    renderPass.end();
 
     device.queue.submit([commandEncoder.finish()]);
 }

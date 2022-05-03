@@ -61,7 +61,8 @@ function configureContext() {
         device: device,
         format: presentationFormat,
         size: [canvas.width, canvas.height, 1],
-        usage: GPUTextureUsage.RENDER_ATTACHMENT
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        compositingAlphaMode: "opaque"
     });
 
     if (depthTexture)
@@ -333,23 +334,26 @@ function render() {
         const computePass = commandEncoder.beginComputePass();
         computePass.setPipeline(computePipeline);
         computePass.setBindGroup(0, computeUniformBindGroup);
-        computePass.dispatch(Math.ceil(numParticles / 256));
-        computePass.endPass();
+        computePass.dispatchWorkgroups(Math.ceil(numParticles / 256));
+        computePass.end();
     }
     { // Render
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: msaaTextureView,
                 resolveTarget: colorTextureView,
-                loadValue: [0, 0, 0, 1],
+                clearValue: [0, 0, 0, 1],
+                loadOp: "clear",
                 storeOp: "store"
             }],
             depthStencilAttachment: {
                 view: depthTextureView,
-                depthLoadValue: 1,
+                depthClearValue: 1,
+                depthLoadOp: "clear",
                 depthStoreOp: "store",
-                stencilLoadValue: 0,
-                stencilStoreOp: "store"
+                // stencilClearValue: 0,
+                // stencilLoadOp: "clear",
+                // stencilStoreOp: "store"
             }
         });
         renderPass.setPipeline(renderPipeline);
@@ -357,7 +361,7 @@ function render() {
         renderPass.setVertexBuffer(1, quadVertexBuffer);
         renderPass.setBindGroup(0, renderUniformBindGroup);
         renderPass.draw(6, numParticles, 0, 0);
-        renderPass.endPass();
+        renderPass.end();
     }
 
     device.queue.submit([commandEncoder.finish()]);

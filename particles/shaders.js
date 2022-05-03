@@ -1,25 +1,25 @@
 // Vertex and fragment shaders
 export const renderSource = `
 struct UBO {
-    pvmMat: mat4x4<f32>;
-	right: vec3<f32>;
-	up: vec3<f32>;
+    pvmMat: mat4x4<f32>,
+	right: vec3<f32>,
+	up: vec3<f32>
 };
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
+@group(0) @binding(0) var<uniform> ubo: UBO;
 
 struct VSIn {
-	[[location(0)]] pos: vec3<f32>;
-    [[location(1)]] color: vec4<f32>;
-	[[location(2)]] quadPos: vec2<f32>;
+	@location(0) pos: vec3<f32>,
+    @location(1) color: vec4<f32>,
+	@location(2) quadPos: vec2<f32>
 };
 
 struct VSOut {
-    [[builtin(position)]] pos: vec4<f32>;
-    [[location(0)]] color: vec4<f32>;
-	[[location(1)]] quadPos: vec2<f32>;
+    @builtin(position) pos: vec4<f32>,
+    @location(0) color: vec4<f32>,
+	@location(1) quadPos: vec2<f32>
 };
 
-[[stage(vertex)]]
+@stage(vertex)
 fn vs_main(vsIn: VSIn) -> VSOut {
     let particleSize = 0.05;
 	// http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
@@ -34,10 +34,10 @@ fn vs_main(vsIn: VSIn) -> VSOut {
     return vsOut;
 }
 
-[[stage(fragment)]]
-fn fs_main(fsIn: VSOut) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn fs_main(fsIn: VSOut) -> @location(0) vec4<f32> {
 	var color = fsIn.color;
-    color.a = color.a * smoothStep(1.0, 0.0, length(fsIn.quadPos));
+    color.a = color.a * smoothstep(1.0, 0.0, length(fsIn.quadPos));
     return color;
 }
 `;
@@ -45,30 +45,30 @@ fn fs_main(fsIn: VSOut) -> [[location(0)]] vec4<f32> {
 // Compute shader
 export const computeSource = `
 struct UBO {
-	seed: f32;
-	deltaTime: f32;
-    time: f32;
-    flowScale: f32;
-	flowEvolution: f32;
-    flowSpeed: f32;
-    artisticMode: u32;
-	numParticles: u32;
+	seed: f32,
+	deltaTime: f32,
+    time: f32,
+    flowScale: f32,
+	flowEvolution: f32,
+    flowSpeed: f32,
+    artisticMode: u32,
+	numParticles: u32
 };
 
 struct Particle {
-	position: vec3<f32>;
-	life: f32;
-	color: vec4<f32>;
-    age: f32;
-    artisticMode: u32;
+	position: vec3<f32>,
+	life: f32,
+	color: vec4<f32>,
+    age: f32,
+    artisticMode: u32
 };
 
 struct Data {
-	particles: array<Particle>;
+	particles: array<Particle>
 };
 
-[[group(0), binding(0)]] var<uniform> ubo: UBO;
-[[group(0), binding(1)]] var<storage, read_write> data: Data;
+@group(0) @binding(0) var<uniform> ubo: UBO;
+@group(0) @binding(1) var<storage, read_write> data: Data;
 
 
 let PI: f32 = 3.1415926535897932384626433;
@@ -294,8 +294,8 @@ fn sampleUnitSphereSurface() -> vec3<f32> {
 }
 
 
-[[stage(compute), workgroup_size(256)]]
-fn main([[builtin(global_invocation_id)]] gid: vec3<u32>) {
+@stage(compute) @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 	if (gid.x >= ubo.numParticles) {
         return;
     }
