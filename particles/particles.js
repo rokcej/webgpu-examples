@@ -186,6 +186,7 @@ window.addEventListener("resize", () => {
 
 // Pipeline
 const renderPipeline = device.createRenderPipeline({
+    layout: "auto",
     // Vertex shader
     vertex: {
         module: renderModule,
@@ -258,6 +259,7 @@ const renderPipeline = device.createRenderPipeline({
     }
 });
 const computePipeline = device.createComputePipeline({
+    layout: "auto",
     compute: {
         module: computeModule,
         entryPoint: "main"
