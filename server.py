@@ -8,6 +8,7 @@ DEFAULT_PORT = 80
 
 class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 	extensions_map = {
+        "": "application/octet-stream", # Default
 		".html": 'text/html',
 		".css": 'text/css',
 		".js": 'application/javascript'
