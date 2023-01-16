@@ -58,12 +58,12 @@ const canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
-const preferredFormat = context.getPreferredFormat(adapter);
+const preferredFormat = navigator.gpu.getPreferredCanvasFormat()
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
     usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
-    compositingAlphaMode: "opaque"
+    alphaMode: "opaque"
 });
 
 // Textures
@@ -99,7 +99,7 @@ struct VSOut {
     @location(0) fragUV: vec2<f32>
 };
 
-@stage(vertex)
+@vertex
 fn main(@builtin(vertex_index) VertexIndex : u32) -> VSOut {
     var pos = array<vec2<f32>, 6>(
         vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0, -1.0), vec2<f32>( 1.0,  1.0),
@@ -119,7 +119,7 @@ const fsQuadSource = `
 @group(0) @binding(0) var uSampler: sampler;
 @group(0) @binding(1) var uTexture: texture_2d<f32>;
 
-@stage(fragment)
+@fragment
 fn main(@location(0) fragUV: vec2<f32>) -> @location(0) vec4<f32> {
     return textureSample(uTexture, uSampler, fragUV);
 }
@@ -135,7 +135,7 @@ struct UBO {
 };
 @binding(0) @group(0) var<uniform> uniforms: UBO;
 
-@stage(vertex)
+@vertex
 fn main(@location(0) inPos: vec3<f32>,
         @location(1) inColor: vec3<f32>) -> VSOut {
     var vsOut: VSOut;
@@ -145,7 +145,7 @@ fn main(@location(0) inPos: vec3<f32>,
 }
 `;
 const fsSceneSource = `
-@stage(fragment)
+@fragment
 fn main(@location(0) inColor: vec3<f32>) -> @location(0) vec4<f32> {
     return vec4<f32>(inColor, 1.0);
 }

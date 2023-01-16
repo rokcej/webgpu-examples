@@ -25,12 +25,12 @@ const canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
-const preferredFormat = context.getPreferredFormat(adapter);
+const preferredFormat = navigator.gpu.getPreferredCanvasFormat()
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
     usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
-    compositingAlphaMode: "opaque"
+    alphaMode: "opaque"
 });
 
 // Input textures
@@ -78,7 +78,7 @@ struct UBO {
 };
 @group(0) @binding(0) var<uniform> ubo: UBO;
 
-@stage(vertex)
+@vertex
 fn main(@location(0) inPos: vec3<f32>,
         @location(2) inUV: vec2<f32>,
         @location(1) inNorm: vec3<f32>) -> VSOut {            
@@ -93,8 +93,8 @@ fn main(@location(0) inPos: vec3<f32>,
 }
 `;
 const fsSource = `
-let shininess: f32 = 32.0;
-let ambient: f32 = 0.1;
+const shininess: f32 = 32.0;
+const ambient: f32 = 0.1;
 
 struct UBO {
     cameraPos: vec3<f32>,
@@ -105,7 +105,7 @@ struct UBO {
 @group(0) @binding(3) var uTexture: texture_2d<f32>;
 @group(0) @binding(4) var uTextureSpecular: texture_2d<f32>;
 
-@stage(fragment)
+@fragment
 fn main(@location(0) fragPos: vec3<f32>,
         @location(1) fragUV: vec2<f32>,
         @location(2) fragNorm: vec3<f32>) -> @location(0) vec4<f32> {

@@ -49,7 +49,7 @@ const canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
-const presentationFormat = context.getPreferredFormat(adapter);
+const presentationFormat = navigator.gpu.getPreferredCanvasFormat()
 
 // Output textures
 let depthTexture, depthTextureView;
@@ -60,9 +60,9 @@ function configureContext() {
     context.configure({
         device: device,
         format: presentationFormat,
-        size: [canvas.width, canvas.height, 1],
+        // size: [canvas.width, canvas.height, 1], // Deprecated
         usage: GPUTextureUsage.RENDER_ATTACHMENT,
-        compositingAlphaMode: "opaque"
+        alphaMode: "opaque"
     });
 
     if (depthTexture)

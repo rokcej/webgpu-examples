@@ -9,7 +9,7 @@ struct UBO {
 @group(0) @binding(1) var uSampler: sampler;
 @group(0) @binding(2) var uTexture: texture_2d<f32>;
 
-@stage(fragment)
+@fragment
 fn main(@location(0) fragUV: vec2<f32>) -> @location(0) vec4<f32> {
     var weights = array<f32, 5>(0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 

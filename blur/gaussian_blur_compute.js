@@ -12,11 +12,11 @@ struct UBO {
 @group(0) @binding(2) var uInTexture: texture_2d<f32>;
 @group(0) @binding(3) var uOutTexture : texture_storage_2d<rgba8unorm, write>;
 
-@stage(compute) @workgroup_size(${WORKGROUP_SIZE[0]}, ${WORKGROUP_SIZE[1]})
+@compute @workgroup_size(${WORKGROUP_SIZE[0]}, ${WORKGROUP_SIZE[1]})
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    var texDim: vec2<i32> = textureDimensions(uInTexture);
+    var texDim: vec2<u32> = textureDimensions(uInTexture);
 
-    if (gid.x >= u32(texDim.x) || gid.y >= u32(texDim.y)) {
+    if (gid.x >= texDim.x || gid.y >= texDim.y) {
         return;
     }
 

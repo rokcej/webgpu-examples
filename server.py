@@ -15,7 +15,7 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 	}
 
 	def end_headers(self):
-		self.send_header("Origin-Trial", "AkXOW6i/Qk3p0TM1XAi0kXUdwLNY8tZyeduts+g92KjzFttZfxgrp6jxQ9h+sUEsJWZWEol/S2JzVAHWY8L7zwAAAABHeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwIiwiZmVhdHVyZSI6IldlYkdQVSIsImV4cGlyeSI6MTY1MjgzMTk5OX0=")
+		self.send_header("Origin-Trial", "ApB+TDs41dv4jFD67a312hCPRMkNgkhNEK6Or8SQWWNtTEqn1CbOk3tyvbbvtnNuaR2Wn4mTx8ivaDxpH+2WpAsAAABHeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjgwIiwiZmVhdHVyZSI6IldlYkdQVSIsImV4cGlyeSI6MTY3NTIwOTU5OX0=")
 		super().end_headers()
 
 

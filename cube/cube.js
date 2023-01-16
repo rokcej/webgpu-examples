@@ -24,12 +24,12 @@ const canvas = document.getElementById("canvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const context = canvas.getContext("webgpu");
-const preferredFormat = context.getPreferredFormat(adapter);
+const preferredFormat = navigator.gpu.getPreferredCanvasFormat()
 context.configure({
     device: device,
     format: preferredFormat, // "rgba8unorm",
     usage: GPUTextureUsage.RENDER_ATTACHMENT, // GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC
-    compositingAlphaMode: "opaque"
+    alphaMode: "opaque"
 });
 
 // Textures
@@ -61,7 +61,7 @@ struct UBO {
 };
 @binding(0) @group(0) var<uniform> uniforms: UBO;
 
-@stage(vertex)
+@vertex
 fn main(@location(0) inPos: vec3<f32>,
         @location(1) inColor: vec3<f32>) -> VSOut {
     var vsOut: VSOut;
@@ -71,7 +71,7 @@ fn main(@location(0) inPos: vec3<f32>,
 }
 `;
 const fsSource = `
-@stage(fragment)
+@fragment
 fn main(@location(0) inColor: vec3<f32>) -> @location(0) vec4<f32> {
     return vec4<f32>(inColor, 1.0);
 }

@@ -19,7 +19,7 @@ struct VSOut {
 	@location(1) quadPos: vec2<f32>
 };
 
-@stage(vertex)
+@vertex
 fn vs_main(vsIn: VSIn) -> VSOut {
     let particleSize = 0.05;
 	// http://www.opengl-tutorial.org/intermediate-tutorials/billboards-particles/billboards/
@@ -34,7 +34,7 @@ fn vs_main(vsIn: VSIn) -> VSOut {
     return vsOut;
 }
 
-@stage(fragment)
+@fragment
 fn fs_main(fsIn: VSOut) -> @location(0) vec4<f32> {
 	var color = fsIn.color;
     color.a = color.a * smoothstep(1.0, 0.0, length(fsIn.quadPos));
@@ -71,7 +71,7 @@ struct Data {
 @group(0) @binding(1) var<storage, read_write> data: Data;
 
 
-let PI: f32 = 3.1415926535897932384626433;
+const PI: f32 = 3.1415926535897932384626433;
 
 
 ///////////////////////////////////////////////////////////
@@ -119,7 +119,7 @@ fn grad4(j: f32, ip: vec4<f32>) -> vec4<f32> {
 }
                           
 // (sqrt(5) - 1)/4 = F4, used once below
-let F4: f32 = 0.309016994374947451;
+const F4: f32 = 0.309016994374947451;
   
 fn simplexNoise(v: vec4<f32>) -> f32 {
     let C = vec4<f32>(
@@ -294,7 +294,7 @@ fn sampleUnitSphereSurface() -> vec3<f32> {
 }
 
 
-@stage(compute) @workgroup_size(256)
+@compute @workgroup_size(256)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 	if (gid.x >= ubo.numParticles) {
         return;
