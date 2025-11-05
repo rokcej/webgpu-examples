@@ -1,7 +1,7 @@
 "use strict";
 
 import { renderSource } from "./shaders.js";
-import * as util from "../util.js";
+import * as util from "/util.js";
 
 // Check WebGPU support
 if (!window.navigator.gpu) {
